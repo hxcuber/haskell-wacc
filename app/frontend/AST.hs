@@ -2,6 +2,7 @@ module AST where
 import Data.List.NonEmpty (NonEmpty)
 
 type Ident = String
+type Dimension = Int
 
 -- Expressions
 data Expr = UnOp UnaryOp Expr |
@@ -14,10 +15,15 @@ data BinOp = Mul | Div | Mod | Plus | Minus | GT | GTE | LT | LTE | EQ | NE | An
 
 -- Types
 data Type = BaseT BaseType | ArrayT ArrayType | PairT PairType
+  deriving Show
 data BaseType = BInt | BBool | BChar | BString
-newtype ArrayType = ArrayType Type
+  deriving Show
+data ArrayType = ArrayType Type Dimension
+  deriving Show
 data PairType = PairType PairElemType PairElemType
+  deriving Show
 data PairElemType = BasePE BaseType | ArrayPE ArrayType | PairPE
+  deriving Show
 
 -- Statements
 data Program = Program (NonEmpty Func) (NonEmpty Stmt)

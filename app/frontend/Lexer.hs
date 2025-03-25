@@ -1,4 +1,5 @@
 {-# LANGUAGE OverloadedLists #-}
+{-# LANGUAGE TypeFamilies #-}
 module Lexer where
 import Text.Gigaparsec.Token.Descriptions (plain, LexicalDesc (nameDesc, symbolDesc, textDesc, spaceDesc), plainName, NameDesc (..), plainSymbol, SymbolDesc (..), plainText, TextDesc (escapeSequences, graphicCharacter), plainEscape, EscapeDesc (..), plainSpace, SpaceDesc (lineCommentStart))
 import Data.Char (isLetter, isDigit, ord)
@@ -8,6 +9,7 @@ import qualified Text.Gigaparsec.Token.Lexer as Text.Gigaparsec.Token
 import qualified Text.Gigaparsec
 import Text.Gigaparsec (atomic, notFollowedBy)
 import Text.Gigaparsec.Char (char, digit)
+import Data.String (IsString (fromString))
 
 myLexicalDesc :: Text.Gigaparsec.Token.Descriptions.LexicalDesc
 myLexicalDesc = plain
