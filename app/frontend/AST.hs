@@ -11,13 +11,13 @@ type Col = Int
 
 -- Expressions
 data Expr = UnOpE UnaryOp Expr Pos |
-            BinOpE Expr BinOp Expr Pos |
+            BinOpE BinOp Expr Expr Pos |
             AtomE Atom Pos
   deriving Show
 mkUnOpE :: Parsec (UnaryOp -> Expr -> Expr)
 mkUnOpE = (\p u e -> UnOpE u e p) <$> pos
-mkBinOpE :: Parsec (Expr -> BinOp -> Expr -> Expr)
-mkBinOpE = (\p e1 b e2 -> BinOpE e1 b e2 p) <$> pos
+mkBinOpE :: Parsec (BinOp -> Expr -> Expr -> Expr)
+mkBinOpE = (\p b e1 e2 -> BinOpE b e1 e2 p) <$> pos
 mkAtomE :: Parsec (Atom -> Expr)
 mkAtomE = flip AtomE <$> pos
 
@@ -55,16 +55,16 @@ mkArrayElem i ees = pos <**> (ArrayElem <$> i <*> ees)
 
 data UnaryOp = Not Pos | Neg Pos | Len Pos | Ord Pos | Chr Pos
   deriving Show
-mkNot :: Parsec UnaryOp
-mkNot = Not <$> pos
-mkNeg :: Parsec UnaryOp
-mkNeg = Neg <$> pos
-mkLen :: Parsec UnaryOp
-mkLen = Len <$> pos
-mkOrd :: Parsec UnaryOp
-mkOrd = Ord <$> pos
-mkChr :: Parsec UnaryOp
-mkChr = Chr <$> pos
+mkNot :: Parsec (Expr -> Expr)
+mkNot = mkUnOpE <*> (Not <$> pos)
+mkNeg :: Parsec (Expr -> Expr)
+mkNeg = mkUnOpE <*> (Neg <$> pos)
+mkLen :: Parsec (Expr -> Expr)
+mkLen = mkUnOpE <*> (Len <$> pos)
+mkOrd :: Parsec (Expr -> Expr)
+mkOrd = mkUnOpE <*> (Ord <$> pos)
+mkChr :: Parsec (Expr -> Expr)
+mkChr = mkUnOpE <*> (Chr <$> pos)
 
 data BinOp = Mul Pos |
              Div Pos |
@@ -80,32 +80,39 @@ data BinOp = Mul Pos |
              And Pos |
              Or Pos
   deriving Show
-mkMul :: Parsec BinOp
-mkMul = Mul <$> pos
-mkDiv :: Parsec BinOp
-mkDiv = Div <$> pos
-mkMod :: Parsec BinOp
-mkMod = Mod <$> pos
-mkPlus :: Parsec BinOp
-mkPlus = Plus <$> pos
-mkMinus :: Parsec BinOp
-mkMinus = Minus <$> pos
-mkGT :: Parsec BinOp
-mkGT = GT <$> pos
-mkGTE :: Parsec BinOp
-mkGTE = GTE <$> pos
-mkLT :: Parsec BinOp
-mkLT = LT <$> pos
-mkLTE :: Parsec BinOp
-mkLTE = LTE <$> pos
-mkEQ :: Parsec BinOp
-mkEQ = EQ <$> pos
-mkNE :: Parsec BinOp
-mkNE = NE <$> pos
-mkAnd :: Parsec BinOp
-mkAnd = And <$> pos
-mkOr :: Parsec BinOp
-mkOr = Or <$> pos
+mkMul :: Parsec (Expr -> Expr -> Expr)
+mkMul = mkBinOpE <*> (Mul <$> pos)
+mkDiv :: Parsec (Expr -> Expr -> Expr)
+mkDiv = mkBinOpE <*> (Div <$> pos)
+mkMod :: Parsec (Expr -> Expr -> Expr)
+mkMod = mkBinOpE <*> (Mod <$> pos)
+mkPlus :: Parsec (Expr -> Expr -> Expr)
+mkPlus = mkBinOpE <*> (Plus <$> pos)
+mkMinus :: Parsec (Expr -> Expr -> Expr)
+mkMinus = mkBinOpE <*> (Minus <$> pos)
+mkGT :: Parsec (Expr -> Expr -> Expr)
+mkGT = mkBinOpE <*> (GT <$> pos)
+mkGTE :: Parsec (Expr -> Expr -> Expr)
+mkGTE = mkBinOpE <*> (GTE <$> pos)
+mkLT :: Parsec (Expr -> Expr -> Expr)
+mkLT = mkBinOpE <*> (LT <$> pos)
+mkLTE :: Parsec (Expr -> Expr -> Expr)
+mkLTE = mkBinOpE <*> (LTE <$> pos)
+mkEQ :: Parsec (Expr -> Expr -> Expr)
+mkEQ = mkBinOpE <*> (EQ <$> pos)
+mkNE :: Parsec (Expr -> Expr -> Expr)
+mkNE = mkBinOpE <*> (NE <$> pos)
+mkAnd :: Parsec (Expr -> Expr -> Expr)
+mkAnd = mkBinOpE <*> (And <$> pos)
+mkOr :: Parsec (Expr -> Expr -> Expr)
+mkOr = mkBinOpE <*> (Or <$> pos)
+
+mkIdentOrArrayElem :: Parsec (Ident -> [Expr] -> Atom)
+mkIdentOrArrayElem
+  = (\p i ees -> case ees of
+      []    -> IdentA i p
+      (_:_) -> ArrayElemA (ArrayElem i ees p) p
+    ) <$> pos
 
 -- Types
 data Type = BaseT BaseType Pos | ArrayT ArrayType Pos | PairT PairType Pos
@@ -152,11 +159,11 @@ mkPairPE :: Parsec PairElemType
 mkPairPE = PairPE <$> pos
 
 mkErasedPairOrPairArray :: Parsec (Maybe ((PairElemType, PairElemType), Dimension) -> PairElemType)
-mkErasedPairOrPairArray = (\p o ->
-  case o of
-    Nothing                  -> PairPE p
-    (Just ((pet1, pet2), d)) -> ArrayPE (ArrayType (PairT (PairType pet1 pet2 p) p) d p) p
-  ) <$> pos
+mkErasedPairOrPairArray
+  = (\p o -> case o of
+      Nothing                  -> PairPE p
+      (Just ((pet1, pet2), d)) -> ArrayPE (ArrayType (PairT (PairType pet1 pet2 p) p) d p) p
+    ) <$> pos
 
 -- Statements
 data Program = Program [Func] (NonEmpty Stmt) Pos
