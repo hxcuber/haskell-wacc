@@ -11,10 +11,10 @@ typeParser :: Parsec Type
 typeParser = mkTypeOrArrayType <*> (mkBaseT baseType <|> mkPairT pairType) <*> count ("[" *> "]")
 
 baseType :: Parsec BaseType
-baseType = "int"    *> mkIntB    <|>
-           "bool"   *> mkBoolB   <|>
-           "char"   *> mkCharB   <|>
-           "string" *> mkStringB
+baseType = mkIntB    <* "int"    <|>
+           mkBoolB   <* "bool"   <|>
+           mkCharB   <* "char"   <|>
+           mkStringB <* "string"
 
 pairType :: Parsec PairType
 pairType = mkPairType ("pair" *> "(" *> pairElemType) ("," *> pairElemType <* ")")
