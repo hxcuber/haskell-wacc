@@ -1,8 +1,10 @@
+{-# LANGUAGE LambdaCase #-}
 module AST where
-import Data.List.NonEmpty (NonEmpty)
+import Data.List.NonEmpty (NonEmpty, last)
 import Text.Gigaparsec (Parsec, (<**>))
 import Text.Gigaparsec.Position (pos, Pos)
-import Prelude hiding (GT, LT, EQ)
+import Prelude hiding (GT, LT, EQ, last)
+import Text.Gigaparsec.Errors.Combinator (filterOut)
 
 type Ident = String
 type Dimension = Int
@@ -107,12 +109,15 @@ mkAnd = mkBinOpE <*> (And <$> pos)
 mkOr :: Parsec (Expr -> Expr -> Expr)
 mkOr = mkBinOpE <*> (Or <$> pos)
 
-mkIdentOrArrayElem :: Parsec (Ident -> [Expr] -> Atom)
-mkIdentOrArrayElem
+mkIdentOrArrayElem :: (Ident -> Pos -> t) -> (ArrayElem -> Pos -> t) -> Parsec (Ident -> [Expr] -> t)
+mkIdentOrArrayElem identCon arrayCon
   = (\p i ees -> case ees of
-      []    -> IdentA i p
-      (_:_) -> ArrayElemA (ArrayElem i ees p) p
+      [] -> identCon i p
+      (_:_) -> arrayCon (ArrayElem i ees p) p
     ) <$> pos
+
+mkIdentAOrArrayElemA :: Parsec (Ident -> [Expr] -> Atom)
+mkIdentAOrArrayElemA = mkIdentOrArrayElem IdentA ArrayElemA
 
 -- Types
 data Type = BaseT BaseType Pos | ArrayT ArrayType Pos | PairT PairType Pos
@@ -167,8 +172,29 @@ mkErasedPairOrPairArray
 
 -- Statements
 data Program = Program [Func] (NonEmpty Stmt) Pos
+mkProg :: Parsec [Func] -> Parsec (NonEmpty Stmt) -> Parsec Program
+mkProg ffs sss = pos <**> (Program <$> ffs <*> sss)
+
 data Func = Func Type Ident [Param] (NonEmpty Stmt) Pos
+mkFunc :: Parsec (Type, Ident) -> Parsec [Param] -> Parsec (NonEmpty Stmt) -> Parsec Func
+mkFunc ti pps sss = pos <**> (Func <$> t <*> i <*> pps <*> sss')
+  where
+    sss' = filterOut (\s -> if lastStmtIsReturnOrExit (last s)
+                         then Nothing
+                         else Just "missing a return or exit on all exit paths"
+                     ) sss
+    lastStmtIsReturnOrExit = \case
+      Return _ _        -> True
+      Exit _ _          -> True
+      If _ true false _ -> lastStmtIsReturnOrExit true && lastStmtIsReturnOrExit false
+      While _ ws _      -> lastStmtIsReturnOrExit ws
+      Begin bs _        -> lastStmtIsReturnOrExit bs
+      _                 -> False
+
 data Param = Param Type Ident Pos
+mkParam :: Parsec Type -> Parsec Ident -> Parsec Param
+mkParam t i = pos <**> (Param <$> t <*> i)
+
 data Stmt = Skip Pos |
             Decl Type Ident Rvalue Pos|
             Asgn Lvalue Rvalue Pos |
@@ -182,6 +208,10 @@ data Stmt = Skip Pos |
             While Expr Stmt Pos |
             Begin Stmt Pos
 data Lvalue = IdentL Ident Pos | ArrayElemL ArrayElem Pos | PairElemL PairElem Pos
+
+mkIdentLOrArrayElemL :: Parsec (Ident -> [Expr] -> Lvalue)
+mkIdentLOrArrayElemL = mkIdentOrArrayElem IdentL ArrayElemL
+
 data Rvalue = ExprR Expr Pos | ArrayLiterR ArrayLiter Pos | NewPairR Expr Expr Pos | PairElemR PairElem Pos | CallR Ident [Expr] Pos
 data PairElem = Fst Lvalue Pos | Snd Lvalue Pos
 data ArrayLiter = ArrayLiter [Expr] Pos

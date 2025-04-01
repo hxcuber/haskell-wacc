@@ -1,7 +1,7 @@
 {-# LANGUAGE OverloadedStrings #-}
 module ExprParser where
 import Lexer (myInteger, myChar, myString, negUnary, myIdentifier)
-import AST (mkIntA, mkBoolA, Atom, mkCharA, mkStrA, mkNullPairA, mkExprA, mkOr, mkAtomE, Expr, mkAnd, mkNot, mkNeg, mkLen, mkOrd, mkChr, mkMul, mkMod, mkDiv, mkPlus, mkMinus, mkEQ, mkGT, mkLT, mkNE, mkIdentOrArrayElem)
+import AST (mkIntA, mkBoolA, Atom, mkCharA, mkStrA, mkNullPairA, mkExprA, mkOr, mkAtomE, Expr, mkAnd, mkNot, mkNeg, mkLen, mkOrd, mkChr, mkMul, mkMod, mkDiv, mkPlus, mkMinus, mkEQ, mkGT, mkLT, mkNE, mkIdentAOrArrayElemA)
 import Text.Gigaparsec ((<|>), ($>), Parsec, many)
 import Text.Gigaparsec.Errors.Combinator (hide)
 import Text.Gigaparsec.Expr (precedence, sops, (+<), Fixity (InfixR, Prefix, InfixL, InfixN), Prec (Atom))
@@ -18,11 +18,11 @@ expr = precedence $
        Atom (mkAtomE <*> atom)
 
 atom :: Parsec Atom
-atom = mkIntA  myInteger                                                 <|>
-       mkBoolA ("true" $> True <|> "false" $> False)                     <|>
-       mkCharA myChar                                                    <|>
-       mkStrA myString                                                   <|>
-       mkNullPairA <* "null"                                             <|>
-       mkIdentOrArrayElem <*> myIdentifier <*> many ("[" *> expr <* "]") <|>
+atom = mkIntA  myInteger                                                   <|>
+       mkBoolA ("true" $> True <|> "false" $> False)                       <|>
+       mkCharA myChar                                                      <|>
+       mkStrA myString                                                     <|>
+       mkNullPairA <* "null"                                               <|>
+       mkIdentAOrArrayElemA <*> myIdentifier <*> many ("[" *> expr <* "]") <|>
        hide (mkExprA ("(" *> expr <* ")"))
 
